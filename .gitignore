@@ -1,0 +1,14 @@
+Starry_Night/
+*.sln
+*.vcxproj
+*.filters
+*.user
+*.xcodeproj
+*.config
+*.aps
+*.filters
+*.user
+/Release/
+/x64/
+/.vs/
+/packages/
