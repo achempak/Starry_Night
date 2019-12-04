@@ -1,20 +1,22 @@
 #include "Terrain.h"
 
-void Terrain::diamond(std::vector<std::vector<float>>& height, int x, int z, int r, float eps, std::mt19937 gen)
+void Terrain::diamond(std::vector<std::vector<float>>& height, int x, int z, int r, float eps, float ran, std::mt19937 gen)
 {
 	// Subarray corners are: height[x-r/2][z-r/2], height[x+r/2][z-r/2], height[x-r/2][z+r/2], height[x+r/2][z+r/2]
 	// Center is height[x][z]
 	// r is diameter of diamond
-	float range = 100.0f;
+	// ran is how much deviation in height there is
+	float range = ran;
 	std::uniform_real_distribution<float> dis(-range, range);
 	height[x][z] = (height[x - r / 2][z - r / 2] + height[x + r / 2][z - r / 2] + height[x - r / 2][z + r / 2] + height[x + r / 2][z + r / 2]) / 4 + dis(gen) * eps;
 }
 
-void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen)
+void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, float ran, std::mt19937 gen)
 {
 	// Center is height[x][z]
 	// Flags contains a flag for each point to see if it has already been calculated
-	float range = 100.0f;
+	// ran is how much deviation in height there is
+	float range = ran;
 
 	// Left point
 	if (!flags[x - r / 2][z])
@@ -77,19 +79,19 @@ void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::v
 	}
 }
 
-void Terrain::diamond_square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen)
+void Terrain::diamond_square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, float ran, std::mt19937 gen)
 {
 	if (r < 1) return;
 
-	float shrink_factor = 0.6f;
-	diamond(height, x, z, r, eps, gen);
-	square(height, flags, x, z, r, eps, gen);
+	float shrink_factor = 0.5f;
+	diamond(height, x, z, r, eps, ran, gen);
+	square(height, flags, x, z, r, eps, ran, gen);
 
 	// Each square spawns four more diamonds
-	diamond_square(height, flags, x - r / 4, z - r / 4, r / 2, eps * shrink_factor, gen);
-	diamond_square(height, flags, x + r / 4, z - r / 4, r / 2, eps * shrink_factor, gen);
-	diamond_square(height, flags, x - r / 4, z + r / 4, r / 2, eps * shrink_factor, gen);
-	diamond_square(height, flags, x + r / 4, z + r / 4, r / 2, eps * shrink_factor, gen);
+	diamond_square(height, flags, x - r / 4, z - r / 4, r / 2, eps * shrink_factor, ran, gen);
+	diamond_square(height, flags, x + r / 4, z - r / 4, r / 2, eps * shrink_factor, ran, gen);
+	diamond_square(height, flags, x - r / 4, z + r / 4, r / 2, eps * shrink_factor, ran, gen);
+	diamond_square(height, flags, x + r / 4, z + r / 4, r / 2, eps * shrink_factor, ran, gen);
 }
 
 Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f, 0.1f, 0.1f)), wireframe_flag(false)
@@ -105,10 +107,11 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	diamond_square(height_i, flags, n / 2, n / 2, n - 1, 1.0f, gen);
+	float range = 200.0f;
+	diamond_square(height_i, flags, n / 2, n / 2, n - 1, 1.0f, range, gen);
 
 	/**********************************************************************************/
-	// Let us smooth the heightmap using a Gaussian filter with sigma=5.
+	// Smooth the heightmap using a Gaussian filter with sigma=5.
 
 	std::vector<float> kernel = { 0.192077f,0.203914f, 0.208019f, 0.203914f, 0.192077f };
 	std::vector<std::vector<float>> height_first_pass(n, std::vector<float>(n));

@@ -524,16 +524,16 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 		switch (key)
 		{
 		case GLFW_KEY_W:
-			key_held = false;
+			if (movement_dir == 'w') key_held = false;
 			break;
 		case GLFW_KEY_S:
-			key_held = false;
+			if (movement_dir == 's') key_held = false;
 			break;
 		case GLFW_KEY_A:
-			key_held = false;
+			if (movement_dir == 'a') key_held = false;
 			break;
 		case GLFW_KEY_D:
-			key_held = false;
+			if (movement_dir == 'd') key_held = false;
 			break;
 		default:
 			break;
@@ -668,12 +668,16 @@ void Window::move(char c)
 	{
 		glm::vec3 forward = center - eye;
 		glm::vec3 right = glm::normalize(glm::cross(forward, up));
-		view = glm::translate(view, movement_speed * right);
+		eye = eye - movement_speed * right;
+		center = center - movement_speed * right;
+		view = glm::lookAt(eye, center, up);
 	}
 	if (c == 'd')
 	{
 		glm::vec3 forward = center - eye;
 		glm::vec3 right = glm::normalize(glm::cross(forward, up));
-		view = glm::translate(view, -movement_speed * right);
+		eye = eye + movement_speed * right;
+		center = center + movement_speed * right;
+		view = glm::lookAt(eye, center, up);
 	}
 }

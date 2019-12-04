@@ -26,9 +26,9 @@ private:
 	// Flags
 	bool wireframe_flag;
 
-	void diamond(std::vector<std::vector<float>>& height, int x, int z, int r, float eps, std::mt19937 gen);
-	void square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen);
-	void diamond_square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen);
+	void diamond(std::vector<std::vector<float>>& height, int x, int z, int r, float eps, float range, std::mt19937 gen);
+	void square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, float range, std::mt19937 gen);
+	void diamond_square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, float range, std::mt19937 gen);
 
 public:
 	// Pretty print 2D vector
