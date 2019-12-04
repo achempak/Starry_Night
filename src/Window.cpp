@@ -7,6 +7,8 @@ double Window::y_prev;
 double Window::fovy = 60.0;
 glm::vec3 Window::lightPos;
 bool Window::holding = false;
+bool Window::key_held = false;
+char Window::movement_dir = 'w';
 bool Window::normal_coloring = false;
 bool Window::boundingOn = true;
 bool Window::zoomMode = true;
@@ -20,6 +22,7 @@ Track* Window::track;
 Geometry* Window::sphere_geo;
 Transform* Window::sphere;
 RGeometry* Window::rsphere_geo;
+Terrain* Window::terrain;
 
 glm::mat4 Window::projection;  // Projection matrix.
 
@@ -44,10 +47,15 @@ GLuint Window::program; // The shader program id.
 GLuint Window::env_program; // Skybox program id.
 GLuint Window::bezier_program; // Bezier program id.
 GLuint Window::reflection_program;
+GLuint Window::simple_program;
 
 GLuint Window::projectionLoc; // Location of projection in shader.
 GLuint Window::viewLoc; // Location of view in shader.
 GLuint Window::colorLoc; // Location of color in shader.
+
+GLuint Window::simpleColorLoc;
+GLuint Window::simpleProjectionLoc;
+GLuint Window::simpleViewLoc;
 
 GLuint Window::skyProjectionLoc;
 GLuint Window::skyViewLoc;
@@ -81,11 +89,14 @@ bool Window::initializeProgram() {
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
 	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
 	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
+	simple_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
 #else
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
 	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
 	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
+	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/normal_shader.frag");
+
 #endif
 
 	// Check the shader program.
@@ -108,6 +119,11 @@ bool Window::initializeProgram() {
 	else if (!reflection_program)
 	{
 		std::cerr << "Failed to initialize reflection shader program" << std::endl;
+	}
+
+	else if (!simple_program)
+	{
+		std::cerr << "Failed to initialize simple shader program" << std::endl;
 	}
 
 	//// Activate the shader program.
@@ -137,6 +153,10 @@ bool Window::initializeProgram() {
 	reflectionViewLoc = glGetUniformLocation(reflection_program, "view");
 	reflectionSkyboxLoc = glGetUniformLocation(reflection_program, "skybox");
 	reflectionCameraLoc = glGetUniformLocation(reflection_program, "cameraPos");
+
+	// Simple shader locs
+	simpleProjectionLoc = glGetUniformLocation(simple_program, "projection");
+	simpleViewLoc = glGetUniformLocation(simple_program, "view");
 
 	return true;
 }
@@ -175,6 +195,9 @@ bool Window::initializeObjects()
     track_points.emplace_back(glm::vec3(-5, -1, 10));
 	track = new Track(track_points, sphere_geo, sphere_geo2, sphere_geo3, rsphere_geo, bezier_program);
 
+	std::vector<float> corners = { 0.0f, 2.0f, 5.0f, 3.0f };
+	terrain = new Terrain(10, corners);
+
 	return true;
 }
 
@@ -183,12 +206,14 @@ void Window::cleanUp()
 	// Deallcoate the objects.
 	delete sky;
 	delete track;
+	delete terrain;
 
 	// Delete the shader program.
 	glDeleteProgram(program);
 	glDeleteProgram(env_program);
 	glDeleteProgram(bezier_program);
 	glDeleteProgram(reflection_program);
+	glDeleteProgram(simple_program);
 }
 
 GLFWwindow* Window::createWindow(int width, int height)
@@ -335,6 +360,10 @@ void Window::idleCallback(GLFWwindow* window)
 		glm::vec3 temp_center = (track->get_tangent());
 		view = glm::lookAt(temp_eye, temp_center, Window::up);
 	}
+	if (key_held)
+	{
+		move(movement_dir);
+	}
 }
 
 void Window::displayCallback(GLFWwindow* window)
@@ -372,11 +401,16 @@ void Window::displayCallback(GLFWwindow* window)
 	glUniformMatrix4fv(reflectionViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	glUniform3fv(reflectionCameraLoc, 1, glm::value_ptr(eye));
 
+	glUseProgram(simple_program);
+	glUniformMatrix4fv(simpleProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+	glUniformMatrix4fv(simpleViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-	sky->draw(glm::scale(glm::vec3(500,500,500)), env_program);
+
+	//sky->draw(glm::scale(glm::vec3(500,500,500)), env_program);
 	//rsphere_geo->draw(glm::translate(glm::vec3(0, 0, 4)) * glm::scale(0.1f * glm::vec3(1)), bezier_program);
-    track->update_pos();
-	track->draw(glm::mat4(1), bezier_program);
+    //track->update_pos();
+	//track->draw(glm::mat4(1), bezier_program);
+	terrain->draw(glm::mat4(1), simple_program);
     
     // Render the light.
 //    model = sphere->getModel();
@@ -403,6 +437,9 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
 		case GLFW_KEY_ESCAPE:
 			// Close the window. This causes the program to also terminate.
 			glfwSetWindowShouldClose(window, GL_TRUE);
+			break;
+		case GLFW_KEY_F:
+			terrain->wireframe(!(terrain->getWireframe()));
 			break;
         case GLFW_KEY_B:
             toggleBounding(!boundingOn);
@@ -461,6 +498,42 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
             break;
 		case GLFW_KEY_I:
 			zoomMode = !zoomMode;
+			break;
+		case GLFW_KEY_W:
+			movement_dir = 'w';
+			key_held = true;
+			break;
+		case GLFW_KEY_S:
+			movement_dir = 's';
+			key_held = true;
+			break;
+		case GLFW_KEY_A:
+			movement_dir = 'a';
+			key_held = true;
+			break;
+		case GLFW_KEY_D:
+			movement_dir = 'd';
+			key_held = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (action == GLFW_RELEASE)
+	{
+		switch (key)
+		{
+		case GLFW_KEY_W:
+			key_held = false;
+			break;
+		case GLFW_KEY_S:
+			key_held = false;
+			break;
+		case GLFW_KEY_A:
+			key_held = false;
+			break;
+		case GLFW_KEY_D:
+			key_held = false;
 			break;
 		default:
 			break;
@@ -570,4 +643,37 @@ void Window::calc_plane(std::vector<glm::vec4> &planes, glm::vec3 normal, glm::v
 void Window::toggleBounding(bool on)
 {
     sphere_geo->toggle_bounding(on);
+}
+
+void Window::move(char c)
+{
+	float movement_speed = 1.001f;
+	if (c == 'w')
+	{
+		glm::vec3 forward = center - eye;
+		glm::vec3 norm_forward = glm::normalize(forward);
+		eye = eye + movement_speed * norm_forward;
+		center = center + movement_speed * norm_forward;
+		view = glm::lookAt(eye, center, up);
+	}
+	if (c == 's')
+	{
+		glm::vec3 forward = center - eye;
+		glm::vec3 norm_forward = glm::normalize(forward);
+		eye = eye - movement_speed * norm_forward;
+		center = center - movement_speed * norm_forward;
+		view = glm::lookAt(eye, center, up);
+	}
+	if (c == 'a')
+	{
+		glm::vec3 forward = center - eye;
+		glm::vec3 right = glm::normalize(glm::cross(forward, up));
+		view = glm::translate(view, movement_speed * right);
+	}
+	if (c == 'd')
+	{
+		glm::vec3 forward = center - eye;
+		glm::vec3 right = glm::normalize(glm::cross(forward, up));
+		view = glm::translate(view, -movement_speed * right);
+	}
 }

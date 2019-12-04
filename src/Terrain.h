@@ -23,6 +23,9 @@ private:
 	// Color properties. Will change these later.
 	glm::vec3 ambient;
 
+	// Flags
+	bool wireframe_flag;
+
 	void diamond(std::vector<std::vector<float>>& height, int x, int z, int r, float eps, std::mt19937 gen);
 	void square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen);
 	void diamond_square(std::vector<std::vector<float>>& height, std::vector<std::vector<bool>>& flags, int x, int z, int r, float eps, std::mt19937 gen);
@@ -36,14 +39,16 @@ public:
 		{
 			for (int j = 0; j < v[i].size(); ++j)
 			{
-				cout << std::setprecision(2) << v[i][j] << "  ";
+				std::cout << std::setprecision(2) << v[i][j] << "  ";
 			}
-			cout << endl;
+			std::cout << std::endl;
 		}
 	};
 
 	Terrain(int size, std::vector<float> corners);
 	~Terrain();
+	void wireframe(bool flag);
+	bool getWireframe();
 	virtual void draw(glm::mat4 C, GLuint program);
 	virtual void update(glm::mat4 C) {};
 	virtual void updatePos(glm::mat4 C) {};

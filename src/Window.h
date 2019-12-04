@@ -25,6 +25,7 @@
 #include "Environment.h"
 #include "Track.h"
 #include "RGeometry.h"
+#include "Terrain.h"
 
 class Window
 {
@@ -48,10 +49,12 @@ public:
 	static GLuint bezier_program, bezierProjectionLoc, bezierViewLoc;
 	static GLuint reflection_program, reflectionProjectionLoc, reflectionViewLoc, reflectionModelLoc,
 		reflectionSkyboxLoc, reflectionCameraLoc;
+	static GLuint simple_program, simpleProjectionLoc, simpleViewLoc, simpleColorLoc;
     static std::vector<glm::vec4> frustrum_planes;
 	static Environment* sky;
 	static Track* track;
 	static Transform* sphere;
+	static Terrain* terrain;
     
     // Normal coloring mode
     static bool normal_coloring;
@@ -61,6 +64,10 @@ public:
 
 	// Zoom mode (FOV or forward/backward)
 	static bool zoomMode;
+
+	// Keep track of moving (wasd)
+	static bool key_held;
+	static char movement_dir;
     
     // Lighting Info
     static GLuint lightLoc, lightAmb, lightDiff, lightSpec, lightLin;
@@ -90,6 +97,7 @@ public:
     static void furstrum_calculation();
     static void calc_plane(std::vector<glm::vec4> &planes, glm::vec3 normal, glm::vec3 point, int plane_number);
     static void toggleBounding(bool on);
+	static void move(char c);
 };
 
 #endif

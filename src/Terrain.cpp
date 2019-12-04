@@ -5,7 +5,8 @@ void Terrain::diamond(std::vector<std::vector<float>>& height, int x, int z, int
 	// Subarray corners are: height[x-r/2][z-r/2], height[x+r/2][z-r/2], height[x-r/2][z+r/2], height[x+r/2][z+r/2]
 	// Center is height[x][z]
 	// r is diameter of diamond
-	std::uniform_real_distribution<float> dis(-1.0, 1.0);
+	float range = 100.0f;
+	std::uniform_real_distribution<float> dis(-range, range);
 	height[x][z] = (height[x - r / 2][z - r / 2] + height[x + r / 2][z - r / 2] + height[x - r / 2][z + r / 2] + height[x + r / 2][z + r / 2]) / 4 + dis(gen) * eps;
 }
 
@@ -13,11 +14,12 @@ void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::v
 {
 	// Center is height[x][z]
 	// Flags contains a flag for each point to see if it has already been calculated
+	float range = 100.0f;
 
 	// Left point
 	if (!flags[x - r / 2][z])
 	{
-		std::uniform_real_distribution<float> dis(-1.0, 1.0);
+		std::uniform_real_distribution<float> dis(-range, range);
 		if (x - r > 0)
 		{
 			height[x - r / 2][z] = (height[x][z] + height[x - r][z] + height[x - r / 2][z - r / 2] + height[x - r / 2][z + r / 2]) / 4 + dis(gen) * eps;
@@ -32,7 +34,7 @@ void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::v
 	// Right point
 	if (!flags[x + r / 2][z])
 	{
-		std::uniform_real_distribution<float> dis(-1.0, 1.0);
+		std::uniform_real_distribution<float> dis(-range, range);
 		if (x + r < height[0].size())
 		{
 			height[x + r / 2][z] = (height[x][z] + height[x + r][z] + height[x + r / 2][z - r / 2] + height[x - r / 2][z + r / 2]) / 4 + dis(gen) * eps;
@@ -47,7 +49,7 @@ void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::v
 	// Top point
 	if (!flags[x][z - r / 2])
 	{
-		std::uniform_real_distribution<float> dis(-1.0, 1.0);
+		std::uniform_real_distribution<float> dis(-range, range);
 		if (z - r > 0)
 		{
 			height[x][z - r / 2] = (height[x][z] + height[x][z - r] + height[x - r / 2][z - r / 2] + height[x + r / 2][z - r / 2]) / 4 + dis(gen) * eps;
@@ -62,7 +64,7 @@ void Terrain::square(std::vector<std::vector<float>>& height, std::vector<std::v
 	// Bottom point
 	if (!flags[x][z + r / 2])
 	{
-		std::uniform_real_distribution<float> dis(-1.0, 1.0);
+		std::uniform_real_distribution<float> dis(-range, range);
 		if (z + r < height[0].size())
 		{
 			height[x][z + r / 2] = (height[x][z] + height[x][z + r] + height[x - r / 2][z + r / 2] + height[x + r / 2][z + r / 2]) / 4 + dis(gen) * eps;
@@ -79,31 +81,87 @@ void Terrain::diamond_square(std::vector<std::vector<float>>& height, std::vecto
 {
 	if (r < 1) return;
 
+	float shrink_factor = 0.6f;
 	diamond(height, x, z, r, eps, gen);
 	square(height, flags, x, z, r, eps, gen);
 
 	// Each square spawns four more diamonds
-	diamond_square(height, flags, x - r / 4, z - r / 4, r / 2, eps * 0.75f, gen);
-	diamond_square(height, flags, x + r / 4, z - r / 4, r / 2, eps * 0.75f, gen);
-	diamond_square(height, flags, x - r / 4, z + r / 4, r / 2, eps * 0.75f, gen);
-	diamond_square(height, flags, x + r / 4, z + r / 4, r / 2, eps * 0.75f, gen);
+	diamond_square(height, flags, x - r / 4, z - r / 4, r / 2, eps * shrink_factor, gen);
+	diamond_square(height, flags, x + r / 4, z - r / 4, r / 2, eps * shrink_factor, gen);
+	diamond_square(height, flags, x - r / 4, z + r / 4, r / 2, eps * shrink_factor, gen);
+	diamond_square(height, flags, x + r / 4, z + r / 4, r / 2, eps * shrink_factor, gen);
 }
 
-Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f, 0.1f, 0.1f))
+Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f, 0.1f, 0.1f)), wireframe_flag(false)
 {
 	int n = (int)std::pow(2, (double)size) + 1;
-	std::vector<std::vector<float>> height(n, std::vector<float>(n));
-	height[0][0] = corners[0];
-	height[0][n - 1] = corners[1];
-	height[n - 1][0] = corners[2];
-	height[n - 1][n - 1] = corners[3];
+	std::vector<std::vector<float>> height_i(n, std::vector<float>(n));
+	height_i[0][0] = corners[0];
+	height_i[0][n - 1] = corners[1];
+	height_i[n - 1][0] = corners[2];
+	height_i[n - 1][n - 1] = corners[3];
 
 	std::vector<std::vector<bool>> flags(n, std::vector<bool>(n));
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	diamond_square(height, flags, n / 2, n / 2, n - 1, 1.0f, gen);
-	print2d(height);
+	diamond_square(height_i, flags, n / 2, n / 2, n - 1, 1.0f, gen);
+
+	/**********************************************************************************/
+	// Let us smooth the heightmap using a Gaussian filter with sigma=5.
+
+	std::vector<float> kernel = { 0.192077f,0.203914f, 0.208019f, 0.203914f, 0.192077f };
+	std::vector<std::vector<float>> height_first_pass(n, std::vector<float>(n));
+	std::vector<std::vector<float>> height(n, std::vector<float>(n));
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < n; ++j)
+		{
+			float sum = 0.0f;
+			for (int k = -2; k <= 2; ++k)
+			{
+				int index = j + k;
+				if (index < 0)
+				{
+					sum += height_i[i][0] * kernel[k+2];
+				}
+				else if (index >= n)
+				{
+					sum += height_i[i][n - 1] * kernel[k + 2];
+				}
+				else
+				{
+					sum += height_i[i][index] * kernel[k + 2];
+				}
+			}
+			height_first_pass[i][j] = sum;
+		}
+	}
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < n; ++j)
+		{
+			float sum = 0.0f;
+			for (int k = -2; k <= 2; ++k)
+			{
+				int index = j + k;
+				if (index < 0)
+				{
+					sum += height_first_pass[0][i] * kernel[k + 2];
+				}
+				else if (index >= n)
+				{
+					sum += height_first_pass[n - 1][i] * kernel[k + 2];
+				}
+				else
+				{
+					sum += height_first_pass[index][i] * kernel[k + 2];
+				}
+				height[i][j] = sum;
+			}
+		}
+	}
+
 
 	/*********************************************************************************/
 	// Make actual vec3 points. Number of triangles per row is (n-1) * 2.
@@ -111,7 +169,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	// The size of the grid will by (grid_size x grid_size).
 
 	std::cout << "MAKING VERTICES." << std::endl;
-	float grid_size = 10;
+	float grid_size = 500;
 	for (int i = 0; i < n - 1; ++i)
 	{
 		for (int j = 0; j < n - 1; ++j)
@@ -129,6 +187,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 
 		}
 	}
+	std::cout << "Size of vertices: " << vertices.size() << std::endl;
 
 	/*********************************************************************************/
 	// Make normals PER FACE.
@@ -149,13 +208,14 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 		// 	normals_face.emplace_back(cross);
 		// }
 	}
+	std::cout << "Size of normals_face: " << normals_face.size() << std::endl;
 
 	/*********************************************************************************/
 	// Make normals PER VERTEX.
 	// Number of vetices per row is (n-1) * 6.
 
 	std::cout << "MAKING NORMALS PER VERTEX." << std::endl;
-	int curr_face = 0;
+	int curr_face = -2;
 	for (int i = 0; i < vertices.size(); ++i)
 	{
 		glm::vec3 sum = glm::vec3(0.0f);
@@ -167,12 +227,12 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 			// Index of top left corner in vertices vector
 			if (i == 0)
 			{
-				sum += normals_face[i];
+				sum += normals_face[curr_face];
 			}
 			// Top right corner
 			else if (i == (n - 1) * 6 - 3 || i == (n - 1) * 6 - 5 == 0)
 			{
-				sum += normals_face[i] + normals_face[i + 1];
+				sum += normals_face[curr_face] + normals_face[curr_face + 1];
 				sum /= 2.0f;
 			}
 			// Vertex on top edge
@@ -181,11 +241,11 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 				// Differentiate between the two types of vertices on top edge
 				if (i % 6 == 0)
 				{
-					sum += normals_face[i - 2] + normals_face[i - 1] + normals_face[i];
+					sum += normals_face[curr_face - 2] + normals_face[curr_face - 1] + normals_face[curr_face];
 				}
 				else
 				{
-					sum += normals_face[i] + normals_face[i + 1] + normals_face[i + 2];
+					sum += normals_face[curr_face] + normals_face[curr_face + 1] + normals_face[curr_face + 2];
 				}
 				sum /= 3.0f;
 			}
@@ -196,25 +256,25 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 			// Bottom left corner
 			if (i == (n - 1) * 6 * (n - 2) + 2 || i == (n - 1) * 6 * (n - 2) + 4)
 			{
-				sum += normals_face[i] + normals_face[i + 1];
+				sum += normals_face[curr_face] + normals_face[curr_face + 1];
 				sum /= 2.0f;
 			}
 			// Bottom right corner
-			else if (i == vertices.size() - 1)
+			else if (i == vertices.size() - 2)
 			{
-				sum += normals_face[i + 1];
+				sum += normals_face[curr_face + 1];
 			}
 			// Bottom edge
 			else if ((i - 2) % 6 == 0 || (i - 4) % 6 == 0 || (i - 5) % 6 == 0)
 			{
 				// Differentiate between the two types of vertices on bottom edge
-				if ((i - 2) % 6 == 0)
+				if ((i - 2) % 6 == 0 || (i - 5) % 6 == 0)
 				{
-					sum += normals_face[i - 2] + normals_face[i - 1] + normals_face[i];
+					sum += normals_face[curr_face - 2] + normals_face[curr_face - 1] + normals_face[curr_face];
 				}
 				else
 				{
-					sum += normals_face[i] + normals_face[i + 1] + normals_face[i + 2];
+					sum += normals_face[curr_face] + normals_face[curr_face + 1] + normals_face[curr_face + 2];
 				}
 				sum /= 3.0f;
 			}
@@ -226,11 +286,11 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 			// Differentiate between the two types of vertices on left edge
 			if (i % ((n - 1) * 6) == 0)
 			{
-				sum += normals_face[i] + normals_face[i - (n - 1) * 2] + normals_face[i - (n - 1) * 2 + 1];
+				sum += normals_face[curr_face] + normals_face[curr_face - (n - 1) * 2] + normals_face[curr_face - (n - 1) * 2 + 1];
 			}
 			else
 			{
-				sum += normals_face[i] + normals_face[i + 1] + normals_face[i + i];
+				sum += normals_face[curr_face] + normals_face[curr_face + 1] + normals_face[curr_face + (n - 1) * 2];
 			}
 			sum /= 3.0f;
 			normals_vertex.emplace_back(sum);
@@ -241,11 +301,11 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 			// Differentiate between the two types of vertices on right edge
 			if ((i + 5) % ((n - 1) * 6) == 0)
 			{
-				sum += normals_face[i - ((n - 1) * 2 - 1)] + normals_face[i] + normals_face[i + 1];
+				sum += normals_face[curr_face - ((n - 1) * 2 - 1)] + normals_face[curr_face] + normals_face[curr_face + 1];
 			}
 			else
 			{
-				sum += normals_face[i + 1] + normals_face[i + (n - 1) * 2] + normals_face[i + (n - 1) * 2 + 1];
+				sum += normals_face[curr_face + 1] + normals_face[curr_face + (n - 1) * 2] + normals_face[curr_face + (n - 1) * 2 + 1];
 			}
 			sum /= 3.0f;
 			normals_vertex.emplace_back(sum);
@@ -255,33 +315,32 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 		{
 			if ((i - 4) % 6 == 0)
 			{
-				sum += normals_face[i + 1] + normals_face[i + 2] + normals_face[i + 3] + normals_face[i + (n - 1) * 2 - 1] + normals_face[i + (n - 1) * 2 + 1] + normals_face[i + (n - 1) * 2 + 2];
+				sum += normals_face[curr_face + 1] + normals_face[curr_face + 2] + normals_face[curr_face + 3] + normals_face[curr_face + (n - 1) * 2 - 1] + normals_face[curr_face + (n - 1) * 2 + 1] + normals_face[curr_face + (n - 1) * 2 + 2];
 			}
 			else if ((i - 2) % 6 == 0 || (i - 5) % 6 == 0)
 			{
-				sum += normals_face[i - 1] + normals_face[i] + normals_face[i + 1] + normals_face[i + (n - 1) * 2 - 2] + normals_face[i + (n - 1) * 2 - 1] + normals_face[i + (n - 1) * 2];
+				sum += normals_face[curr_face - 1] + normals_face[curr_face] + normals_face[curr_face + 1] + normals_face[curr_face + (n - 1) * 2 - 2] + normals_face[curr_face + (n - 1) * 2 - 1] + normals_face[curr_face + (n - 1) * 2];
 			}
 			else if ((i - 1) % 6 == 0 || (i - 3) % 6 == 0)
 			{
-				sum += normals_face[i - (n - 1) * 2 + 1] + normals_face[i - (n - 1) * 2 + 2] + normals_face[i - (n - 1) * 2 + 3] + normals_face[i] + normals_face[i + 1] + normals_face[i + 2];
+				sum += normals_face[curr_face - (n - 1) * 2 + 1] + normals_face[curr_face - (n - 1) * 2 + 2] + normals_face[curr_face - (n - 1) * 2 + 3] + normals_face[curr_face] + normals_face[curr_face + 1] + normals_face[curr_face + 2];
 			}
 			else
 			{
 				// i % 6 == 0
-				sum += normals_face[i - (n - 1) * 2 - 1] + normals_face[i - (n - 1) * 2] + normals_face[i - (n - 1) * 2 + 1] + normals_face[i - 2] + normals_face[i - 1] + normals_face[i];
+				sum += normals_face[curr_face - (n - 1) * 2 - 1] + normals_face[curr_face - (n - 1) * 2] + normals_face[curr_face - (n - 1) * 2 + 1] + normals_face[curr_face - 2] + normals_face[curr_face - 1] + normals_face[curr_face];
 			}
 			sum /= 6.0f;
 			normals_vertex.emplace_back(sum);
 		}
 	}
 	std::cout << "DONE." << std::endl;
-	std::cout << "Size of vertices: " << vertices.size() << std::endl;
 	std::cout << "Size of normals_vertex: " << normals_vertex.size() << std::endl;
 
 
 	/*********************************************************************************/
 	// Normalize the terrain.
-	float window_width = 640;
+	/*float window_width = 640;
 	float window_height = 480;
 	glm::vec3 max{ 0,0,0 };
 	glm::vec3 min{ 0,0,0 };
@@ -317,7 +376,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	for (int i = 0; i < vertices.size(); ++i)
 	{
 		vertices[i] = magic_scale_factor * multiplier * vertices[i];
-	}
+	}*/
 
 	/*********************************************************************************/
 	// Deal with GPU stuff.
@@ -354,6 +413,24 @@ void Terrain::draw(glm::mat4 C, GLuint program)
 	glUniform3fv(color, 1, glm::value_ptr(ambient));
 
 	glBindVertexArray(vao);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	if (!wireframe_flag)
+	{
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	}
+	else
+	{
+		glDrawArrays(GL_LINES, 0, vertices.size());
+	}
 	glBindVertexArray(0);
+}
+
+void Terrain::wireframe(bool flag)
+{
+	if (flag) wireframe_flag = true;
+	else wireframe_flag = false;
+}
+
+bool Terrain::getWireframe()
+{
+	return wireframe_flag;
 }
