@@ -23,6 +23,7 @@ Geometry* Window::sphere_geo;
 Transform* Window::sphere;
 RGeometry* Window::rsphere_geo;
 Terrain* Window::terrain;
+Water* Window::water;
 
 glm::mat4 Window::projection;  // Projection matrix.
 
@@ -48,6 +49,7 @@ GLuint Window::env_program; // Skybox program id.
 GLuint Window::bezier_program; // Bezier program id.
 GLuint Window::reflection_program;
 GLuint Window::simple_program;
+GLuint Window::water_program;
 
 GLuint Window::projectionLoc; // Location of projection in shader.
 GLuint Window::viewLoc; // Location of view in shader.
@@ -70,6 +72,12 @@ GLuint Window::reflectionModelLoc;
 GLuint Window::reflectionSkyboxLoc;
 GLuint Window::reflectionCameraLoc;
 
+// Water stuff
+GLuint Window::waterColorLoc;
+GLuint Window::waterProjectionLoc;
+GLuint Window::waterViewLoc;
+WaterFrameBuffer* Window::fbos;
+
 GLuint Window::lightLoc;
 GLuint Window::lightAmb;
 GLuint Window::lightSpec;
@@ -90,12 +98,14 @@ bool Window::initializeProgram() {
 	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
 	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
 	simple_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
+	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
 #else
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
 	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
 	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
 	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/normal_shader.frag");
+	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
 
 #endif
 
@@ -124,6 +134,11 @@ bool Window::initializeProgram() {
 	else if (!simple_program)
 	{
 		std::cerr << "Failed to initialize simple shader program" << std::endl;
+	}
+
+	else if (!water_program)
+	{
+		std::cerr << "Failed to initialize water shader program" << std::endl;
 	}
 
 	//// Activate the shader program.
@@ -158,6 +173,13 @@ bool Window::initializeProgram() {
 	simpleProjectionLoc = glGetUniformLocation(simple_program, "projection");
 	simpleViewLoc = glGetUniformLocation(simple_program, "view");
 
+	// Water shader locs
+	waterProjectionLoc = glGetUniformLocation(water_program, "projection");
+	waterViewLoc = glGetUniformLocation(water_program, "view");
+
+	// Setup water FBOs
+	fbos = new WaterFrameBuffer();
+
 	return true;
 }
 
@@ -181,22 +203,24 @@ bool Window::initializeObjects()
 	sky = new Environment(faces);
 	GLuint skyTexture = sky->getTextureID();
 
-	rsphere_geo = new RGeometry("../resources/sphere.obj", "rsphere_geo", skyTexture, reflection_program);
+	//rsphere_geo = new RGeometry("../resources/sphere.obj", "rsphere_geo", skyTexture, reflection_program);
 
-	std::vector<glm::vec3> track_points;
-	track_points.emplace_back(glm::vec3(-5, -1, 10));
-	track_points.emplace_back(glm::vec3{ -3, -1, 13 });
-	track_points.emplace_back(glm::vec3{ 0, 3, 15 });
-	track_points.emplace_back(glm::vec3{ 3, -1, 13 });
-	track_points.emplace_back(glm::vec3{ 5, -1, 10 });
-	track_points.emplace_back(glm::vec3{ 7, -1, 7 });
-	track_points.emplace_back(glm::vec3{ 3, -1, 4 });
-	track_points.emplace_back(glm::vec3{ -2, -1, 7 });
-    track_points.emplace_back(glm::vec3(-5, -1, 10));
-	track = new Track(track_points, sphere_geo, sphere_geo2, sphere_geo3, rsphere_geo, bezier_program);
+	//std::vector<glm::vec3> track_points;
+	//track_points.emplace_back(glm::vec3(-5, -1, 10));
+	//track_points.emplace_back(glm::vec3{ -3, -1, 13 });
+	//track_points.emplace_back(glm::vec3{ 0, 3, 15 });
+	//track_points.emplace_back(glm::vec3{ 3, -1, 13 });
+	//track_points.emplace_back(glm::vec3{ 5, -1, 10 });
+	//track_points.emplace_back(glm::vec3{ 7, -1, 7 });
+	//track_points.emplace_back(glm::vec3{ 3, -1, 4 });
+	//track_points.emplace_back(glm::vec3{ -2, -1, 7 });
+ //   track_points.emplace_back(glm::vec3(-5, -1, 10));
+	//track = new Track(track_points, sphere_geo, sphere_geo2, sphere_geo3, rsphere_geo, bezier_program);
 
-	std::vector<float> corners = { 0.0f, 2.0f, 5.0f, 3.0f };
-	terrain = new Terrain(10, corners);
+	//std::vector<float> corners = { 0.0f, 10.0f, 5.0f, 3.0f };
+	//terrain = new Terrain(10, corners);
+
+	water = new Water(glm::vec3(0, 0, 1), glm::vec3(20, 0, 0), glm::vec3(0, 0, 20));
 
 	return true;
 }
@@ -207,6 +231,8 @@ void Window::cleanUp()
 	delete sky;
 	delete track;
 	delete terrain;
+	delete water;
+	delete fbos;
 
 	// Delete the shader program.
 	glDeleteProgram(program);
@@ -214,6 +240,7 @@ void Window::cleanUp()
 	glDeleteProgram(bezier_program);
 	glDeleteProgram(reflection_program);
 	glDeleteProgram(simple_program);
+	glDeleteProgram(water_program);
 }
 
 GLFWwindow* Window::createWindow(int width, int height)
@@ -401,16 +428,23 @@ void Window::displayCallback(GLFWwindow* window)
 	glUniformMatrix4fv(reflectionViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	glUniform3fv(reflectionCameraLoc, 1, glm::value_ptr(eye));
 
+	// Simple uniform variables
 	glUseProgram(simple_program);
 	glUniformMatrix4fv(simpleProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 	glUniformMatrix4fv(simpleViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+	// Water uniform variables
+	glUseProgram(water_program);
+	glUniformMatrix4fv(waterProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+	glUniformMatrix4fv(waterViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
 
 	//sky->draw(glm::scale(glm::vec3(500,500,500)), env_program);
 	//rsphere_geo->draw(glm::translate(glm::vec3(0, 0, 4)) * glm::scale(0.1f * glm::vec3(1)), bezier_program);
     //track->update_pos();
 	//track->draw(glm::mat4(1), bezier_program);
-	terrain->draw(glm::mat4(1), simple_program);
+	//terrain->draw(glm::mat4(1), simple_program);
+	water->draw(glm::mat4(1), water_program);
     
     // Render the light.
 //    model = sphere->getModel();

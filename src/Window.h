@@ -26,6 +26,8 @@
 #include "Track.h"
 #include "RGeometry.h"
 #include "Terrain.h"
+#include "Water.h"
+#include "WaterFrameBuffer.h"
 
 class Window
 {
@@ -50,11 +52,13 @@ public:
 	static GLuint reflection_program, reflectionProjectionLoc, reflectionViewLoc, reflectionModelLoc,
 		reflectionSkyboxLoc, reflectionCameraLoc;
 	static GLuint simple_program, simpleProjectionLoc, simpleViewLoc, simpleColorLoc;
+	static GLuint water_program, waterProjectionLoc, waterViewLoc, waterColorLoc;
     static std::vector<glm::vec4> frustrum_planes;
 	static Environment* sky;
 	static Track* track;
 	static Transform* sphere;
 	static Terrain* terrain;
+	static Water* water;
     
     // Normal coloring mode
     static bool normal_coloring;
@@ -83,6 +87,9 @@ public:
     static glm::vec3 matDiffuse;
     static glm::vec3 matSpecular;
     static float shininess;
+
+	// Water Stuff
+	static WaterFrameBuffer* fbos;
 
 	static bool initializeProgram();
 	static bool initializeObjects();
