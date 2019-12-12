@@ -13,6 +13,7 @@ layout (location = 1) in vec3 normal;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
+uniform vec4 plane;
 
 // Outputs of the vertex shader are the inputs of the same name of the fragment shader.
 // The default output, gl_Position, should be assigned something. You can define as many
@@ -22,7 +23,10 @@ out vec3 fragNormal;
 
 void main()
 {
-    fragPos = vec3(model * vec4(position, 1.0));
+	vec4 worldPos = model * vec4(position, 1.0);
+	gl_ClipDistance[0] = dot(worldPos, plane);
+
+    fragPos = vec3(worldPos);
     fragNormal = mat3(transpose(inverse(model))) * normal;
     // OpenGL maintains the D matrix so you only need to multiply by P, V (aka C inverse), and M
     gl_Position = projection * view * model * vec4(position, 1.0);

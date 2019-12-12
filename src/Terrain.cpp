@@ -115,7 +115,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 
 	std::vector<float> kernel = { 0.192077f,0.203914f, 0.208019f, 0.203914f, 0.192077f };
 	std::vector<std::vector<float>> height_first_pass(n, std::vector<float>(n));
-	std::vector<std::vector<float>> height(n, std::vector<float>(n));
+	height = std::vector<std::vector<float>>(n, std::vector<float>(n));
 	for (int i = 0; i < n; ++i)
 	{
 		for (int j = 0; j < n; ++j)
@@ -165,6 +165,26 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 		}
 	}
 
+	min_height = 10000.0f;
+	max_height = -10000.0f;
+	avg_height = 0.0f;
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < n; ++j)
+		{
+			if (height[i][j] < min_height) min_height = height[i][j];
+			if (height[i][j] > max_height) max_height = height[i][j];
+			avg_height += height[i][j];
+		}
+	}
+	avg_height /= n * n;
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < n; ++j)
+		{
+			height[i][j] -= avg_height;
+		}
+	}
 
 	/*********************************************************************************/
 	// Make actual vec3 points. Number of triangles per row is (n-1) * 2.
@@ -173,6 +193,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 
 	std::cout << "MAKING VERTICES." << std::endl;
 	float grid_size = 500;
+	//float grid_size = n-1;
 	for (int i = 0; i < n - 1; ++i)
 	{
 		for (int j = 0; j < n - 1; ++j)
@@ -436,4 +457,24 @@ void Terrain::wireframe(bool flag)
 bool Terrain::getWireframe()
 {
 	return wireframe_flag;
+}
+
+std::vector<std::vector<float>> Terrain::getHeight()
+{
+	return height;
+}
+
+float Terrain::getMinHeight()
+{
+	return min_height;
+}
+
+float Terrain::getMaxHeight()
+{
+	return max_height;
+}
+
+float Terrain::getAvgHeight()
+{
+	return avg_height;
 }

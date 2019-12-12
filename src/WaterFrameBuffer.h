@@ -29,7 +29,7 @@ public:
 	~WaterFrameBuffer();
 	void bindReflectionFrameBuffer();
 	void bindRefractionFrameBuffer();
-	void ubindCurrentFrameBuffer();
+	void unbindCurrentFrameBuffer(int width, int height);
 	GLuint getReflectionTexture();
 	GLuint getRefractionTexture();
 	GLuint getRefractionDepthTexture();

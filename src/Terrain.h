@@ -20,6 +20,11 @@ private:
 	GLuint vao;
 	GLuint vbos[2];
 
+	std::vector<std::vector<float>> height;
+	float min_height;
+	float max_height;
+	float avg_height;
+
 	// Color properties. Will change these later.
 	glm::vec3 ambient;
 
@@ -55,6 +60,10 @@ public:
 	virtual std::string getName() {
 		return "Terrain";
 	};
+	std::vector<std::vector<float>> getHeight();
+	float getMinHeight();
+	float getMaxHeight();
+	float getAvgHeight();
 };
 
 #endif // !TERRAIN_H

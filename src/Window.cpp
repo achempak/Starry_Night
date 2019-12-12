@@ -18,12 +18,11 @@ std::vector<glm::vec4> Window::frustrum_planes(6, glm::vec4(0));
 
 const char* Window::windowTitle = "Final";
 
-Track* Window::track;
 Geometry* Window::sphere_geo;
 Transform* Window::sphere;
-RGeometry* Window::rsphere_geo;
 Terrain* Window::terrain;
 Water* Window::water;
+Gui* Window::gui;
 
 glm::mat4 Window::projection;  // Projection matrix.
 
@@ -46,10 +45,9 @@ float Window::linear = 0.02;
 
 GLuint Window::program; // The shader program id.
 GLuint Window::env_program; // Skybox program id.
-GLuint Window::bezier_program; // Bezier program id.
-GLuint Window::reflection_program;
 GLuint Window::simple_program;
 GLuint Window::water_program;
+GLuint Window::gui_program;
 
 GLuint Window::projectionLoc; // Location of projection in shader.
 GLuint Window::viewLoc; // Location of view in shader.
@@ -58,25 +56,25 @@ GLuint Window::colorLoc; // Location of color in shader.
 GLuint Window::simpleColorLoc;
 GLuint Window::simpleProjectionLoc;
 GLuint Window::simpleViewLoc;
+GLuint Window::simplePlaneLoc;
 
 GLuint Window::skyProjectionLoc;
 GLuint Window::skyViewLoc;
 GLuint Window::skyboxLoc; // Location of skybox in shader.
 
-GLuint Window::bezierProjectionLoc;
-GLuint Window::bezierViewLoc;
-
-GLuint Window::reflectionProjectionLoc;
-GLuint Window::reflectionViewLoc;
-GLuint Window::reflectionModelLoc;
-GLuint Window::reflectionSkyboxLoc;
-GLuint Window::reflectionCameraLoc;
-
 // Water stuff
 GLuint Window::waterColorLoc;
 GLuint Window::waterProjectionLoc;
 GLuint Window::waterViewLoc;
+GLuint Window::waterReflectionLoc;
+GLuint Window::waterRefractionLoc;
+GLuint Window::waterDudvLoc;
 WaterFrameBuffer* Window::fbos;
+
+// GUI stuff
+GLuint Window::guiProjectionLoc;
+GLuint Window::guiViewLoc;
+GLuint Window::guiTextureLoc;
 
 GLuint Window::lightLoc;
 GLuint Window::lightAmb;
@@ -95,17 +93,15 @@ bool Window::initializeProgram() {
 #ifdef __APPLE__
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
-	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
-	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
-	simple_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
+	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/simple_shader.frag");
 	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
+	gui_program = LoadShaders("../shaders/gui_shader.vert", "../shaders/gui_shader.frag");
 #else
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
-	bezier_program = LoadShaders("../shaders/simple_shader.vert", "../shaders/simple_shader.frag");
-	reflection_program = LoadShaders("../shaders/reflection_shader.vert", "../shaders/reflection_shader.frag");
 	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/normal_shader.frag");
 	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
+	gui_program = LoadShaders("../shaders/gui_shader.vert", "../shaders/gui_shader.frag");
 
 #endif
 
@@ -121,16 +117,6 @@ bool Window::initializeProgram() {
 		std::cerr << "Failed to initialize skybox shader program" << std::endl;
 	}
 
-	else if (!bezier_program)
-	{
-		std::cerr << "Failed to initialize Bezier shader program" << std::endl;
-	}
-
-	else if (!reflection_program)
-	{
-		std::cerr << "Failed to initialize reflection shader program" << std::endl;
-	}
-
 	else if (!simple_program)
 	{
 		std::cerr << "Failed to initialize simple shader program" << std::endl;
@@ -139,6 +125,11 @@ bool Window::initializeProgram() {
 	else if (!water_program)
 	{
 		std::cerr << "Failed to initialize water shader program" << std::endl;
+	}
+
+	else if (!gui_program)
+	{
+		std::cerr << "Failed to initialize gui shader program" << std::endl;
 	}
 
 	//// Activate the shader program.
@@ -159,38 +150,33 @@ bool Window::initializeProgram() {
 	skyViewLoc = glGetUniformLocation(env_program, "view");
 	skyboxLoc = glGetUniformLocation(env_program, "skybox");
 
-	// Bezier shader locs
-	bezierProjectionLoc = glGetUniformLocation(bezier_program, "projection");
-	bezierViewLoc = glGetUniformLocation(bezier_program, "view");
-
-	// Reflection shader locs
-	reflectionProjectionLoc = glGetUniformLocation(reflection_program, "projection");
-	reflectionViewLoc = glGetUniformLocation(reflection_program, "view");
-	reflectionSkyboxLoc = glGetUniformLocation(reflection_program, "skybox");
-	reflectionCameraLoc = glGetUniformLocation(reflection_program, "cameraPos");
-
 	// Simple shader locs
 	simpleProjectionLoc = glGetUniformLocation(simple_program, "projection");
 	simpleViewLoc = glGetUniformLocation(simple_program, "view");
+	simplePlaneLoc = glGetUniformLocation(simple_program, "plane");
 
 	// Water shader locs
 	waterProjectionLoc = glGetUniformLocation(water_program, "projection");
 	waterViewLoc = glGetUniformLocation(water_program, "view");
+	waterReflectionLoc = glGetUniformLocation(water_program, "reflectionTexture");
+	waterRefractionLoc = glGetUniformLocation(water_program, "refractionTexture");
+	waterDudvLoc = glGetUniformLocation(water_program, "dudvMap");
 
-	// Setup water FBOs
-	fbos = new WaterFrameBuffer();
+	// GUI shader locs
+	guiProjectionLoc = glGetUniformLocation(gui_program, "projection");
+	guiViewLoc = glGetUniformLocation(gui_program, "view");
+	guiTextureLoc = glGetUniformLocation(gui_program, "myTextureSampler");
 
 	return true;
 }
 
 bool Window::initializeObjects()
 {
-	sphere_geo = new Geometry("../resources/sphere.obj", "sphere_geo");
-	sphere_geo->setMaterial(glm::vec3(0, 0.5, 1));
-	Geometry* sphere_geo2 = new Geometry("../resources/sphere.obj", "sphere_geo2");
-	sphere_geo2->setMaterial(glm::vec3(0, 0, 1));
-	Geometry* sphere_geo3 = new Geometry("../resources/sphere.obj", "sphere_geo3");
-	sphere_geo3->setMaterial(glm::vec3(0, 1, 0));
+	// Setup water FBOs
+	fbos = new WaterFrameBuffer();
+
+	//sphere_geo = new Geometry("../resources/sphere.obj", "sphere_geo");
+	//sphere_geo->setMaterial(glm::vec3(0, 0.5, 1));
 
 	std::vector<std::string> faces = {
 		"../resources/mp_tf/thefog_lf.tga",
@@ -203,24 +189,20 @@ bool Window::initializeObjects()
 	sky = new Environment(faces);
 	GLuint skyTexture = sky->getTextureID();
 
-	//rsphere_geo = new RGeometry("../resources/sphere.obj", "rsphere_geo", skyTexture, reflection_program);
+	std::vector<float> corners = { 0.0f, 10.0f, 5.0f, 3.0f };
+	terrain = new Terrain(10, corners);
 
-	//std::vector<glm::vec3> track_points;
-	//track_points.emplace_back(glm::vec3(-5, -1, 10));
-	//track_points.emplace_back(glm::vec3{ -3, -1, 13 });
-	//track_points.emplace_back(glm::vec3{ 0, 3, 15 });
-	//track_points.emplace_back(glm::vec3{ 3, -1, 13 });
-	//track_points.emplace_back(glm::vec3{ 5, -1, 10 });
-	//track_points.emplace_back(glm::vec3{ 7, -1, 7 });
-	//track_points.emplace_back(glm::vec3{ 3, -1, 4 });
-	//track_points.emplace_back(glm::vec3{ -2, -1, 7 });
- //   track_points.emplace_back(glm::vec3(-5, -1, 10));
-	//track = new Track(track_points, sphere_geo, sphere_geo2, sphere_geo3, rsphere_geo, bezier_program);
+	//std::vector<std::vector<float>> heightmap = terrain->getHeight();
+	int map_width = 250; // Since "grid_size" is 500
+	std::string dudv_path = "../resources/waterDUDV.png";
+	//water = new Water(glm::vec3(0, terrain->getAvgHeight(), 0), glm::vec3(500, 0, 0), glm::vec3(0, 0, 500), fbos, dudv_path);
+	water = new Water(glm::vec3(0, 0, 0), glm::vec3(500, 0, 0), glm::vec3(0, 0, 500), fbos, dudv_path);
 
-	//std::vector<float> corners = { 0.0f, 10.0f, 5.0f, 3.0f };
-	//terrain = new Terrain(10, corners);
+	gui = new Gui(glm::vec3(0, 0, 0), glm::vec3(10, 0, 0), glm::vec3(0, 10, 0));
 
-	water = new Water(glm::vec3(0, 0, 1), glm::vec3(20, 0, 0), glm::vec3(0, 0, 20));
+	std::cout << "dudv GLuint: " << water->getDudv() << std::endl;
+	std::cout << "reflection GLuint: " << fbos->getReflectionTexture() << std::endl;
+	std::cout << "refraction GLuint: " << fbos->getRefractionTexture() << std::endl;
 
 	return true;
 }
@@ -229,18 +211,17 @@ void Window::cleanUp()
 {
 	// Deallcoate the objects.
 	delete sky;
-	delete track;
 	delete terrain;
 	delete water;
 	delete fbos;
+	delete gui;
 
 	// Delete the shader program.
 	glDeleteProgram(program);
 	glDeleteProgram(env_program);
-	glDeleteProgram(bezier_program);
-	glDeleteProgram(reflection_program);
 	glDeleteProgram(simple_program);
 	glDeleteProgram(water_program);
+	glDeleteProgram(gui_program);
 }
 
 GLFWwindow* Window::createWindow(int width, int height)
@@ -381,12 +362,12 @@ void Window::idleCallback(GLFWwindow* window)
             y_prev = y_curr;
         }
     }
-	if (toggleCam)
-	{
-		glm::vec3 temp_eye = track->get_ball_point();
-		glm::vec3 temp_center = (track->get_tangent());
-		view = glm::lookAt(temp_eye, temp_center, Window::up);
-	}
+	//if (toggleCam)
+	//{
+	//	glm::vec3 temp_eye = track->get_ball_point();
+	//	glm::vec3 temp_center = (track->get_tangent());
+	//	view = glm::lookAt(temp_eye, temp_center, Window::up);
+	//}
 	if (key_held)
 	{
 		move(movement_dir);
@@ -396,7 +377,11 @@ void Window::idleCallback(GLFWwindow* window)
 void Window::displayCallback(GLFWwindow* window)
 {	
 	// Clear the color and depth buffers.
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	fbos->bindReflectionFrameBuffer();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	fbos->bindRefractionFrameBuffer();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program);
 	// Specify the values of the uniform variables we are going to use.
@@ -417,17 +402,6 @@ void Window::displayCallback(GLFWwindow* window)
 	//glm::mat4 temp = glm::mat4(glm::mat3(view)); // Remove translation from the view matrix
 	glUniformMatrix4fv(skyViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-    glUseProgram(bezier_program);
-	// Bezier uniform variables
-	glUniformMatrix4fv(bezierProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-	glUniformMatrix4fv(bezierViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-    glUseProgram(reflection_program);
-	// Reflection uniform variables
-	glUniformMatrix4fv(reflectionProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-	glUniformMatrix4fv(reflectionViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-	glUniform3fv(reflectionCameraLoc, 1, glm::value_ptr(eye));
-
 	// Simple uniform variables
 	glUseProgram(simple_program);
 	glUniformMatrix4fv(simpleProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
@@ -437,13 +411,61 @@ void Window::displayCallback(GLFWwindow* window)
 	glUseProgram(water_program);
 	glUniformMatrix4fv(waterProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 	glUniformMatrix4fv(waterViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+	glUniform1i(waterReflectionLoc, 0);
+	glUniform1i(waterRefractionLoc, 1);
+	glUniform1i(waterDudvLoc, 2);
 
+	// Gui uniform variables
+	glUseProgram(gui_program);
+	glUniformMatrix4fv(guiProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+	glUniformMatrix4fv(guiViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+	glUniform1i(guiTextureLoc, 0);
 
-	//sky->draw(glm::scale(glm::vec3(500,500,500)), env_program);
-	//rsphere_geo->draw(glm::translate(glm::vec3(0, 0, 4)) * glm::scale(0.1f * glm::vec3(1)), bezier_program);
-    //track->update_pos();
-	//track->draw(glm::mat4(1), bezier_program);
-	//terrain->draw(glm::mat4(1), simple_program);
+	// Enable clipping
+	glEnable(GL_CLIP_DISTANCE0);
+	
+	// First, render scene without water to reflection framebuffer
+	fbos->bindReflectionFrameBuffer();
+	//float distance = 2 * (eye.y - water->getHeight());
+	//float angle = glm::acos(glm::dot(glm::vec3(0, 1, 0), glm::normalize(center - eye)));
+	glm::mat4 reflect = glm::mat4(1);
+	reflect[1][1] = -1;
+	//view = glm::lookAt(eye-glm::vec3(0,distance,0), center, up); // Move camera eye below water's surface
+	glm::mat4 oldview = view;
+	view = reflect * view;
+	glUseProgram(simple_program);
+	glUniform4fv(simplePlaneLoc, 1, glm::value_ptr(glm::vec4(0, 1, 0, -water->getHeight())));
+	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	terrain->draw(glm::mat4(1), simple_program);
+	//view = glm::lookAt(eye, center, up); // Move camera back
+	view = oldview;
+
+	// Second, render scene without water to refraction framebuffer
+	fbos->bindRefractionFrameBuffer();
+	glUseProgram(simple_program);
+	glUniform4fv(simplePlaneLoc, 1, glm::value_ptr(glm::vec4(0, -1, 0, water->getHeight())));
+	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	terrain->draw(glm::mat4(1), simple_program);
+	fbos->unbindCurrentFrameBuffer(Window::width, Window::height);
+
+	// Finally render full scene
+	glDisable(GL_CLIP_DISTANCE0);
+	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	terrain->draw(glm::mat4(1), simple_program);
+
+	glUseProgram(gui_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, water->getDudv());
+	gui->draw(glm::mat4(1), gui_program);
+
+	glUseProgram(water_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, fbos->getReflectionTexture());
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, fbos->getRefractionTexture());
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, water->getDudv());
+
 	water->draw(glm::mat4(1), water_program);
     
     // Render the light.
@@ -479,48 +501,6 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
             toggleBounding(!boundingOn);
             boundingOn = !boundingOn;
             break;
-		case GLFW_KEY_X:
-			if (mods == GLFW_MOD_SHIFT)
-			{
-				track->move_point(glm::vec3(-delta, 0, 0));
-			}
-			else
-			{
-				track->move_point(glm::vec3(delta, 0, 0));
-			}
-			break;
-		case GLFW_KEY_Y:
-			if (mods == GLFW_MOD_SHIFT)
-			{
-				track->move_point(glm::vec3(0, -delta, 0));
-			}
-			else
-			{
-				track->move_point(glm::vec3(0, delta, 0));
-			}
-			break;
-		case GLFW_KEY_Z:
-			if (mods == GLFW_MOD_SHIFT)
-			{
-				track->move_point(glm::vec3(0, 0, -delta));
-			}
-			else
-			{
-				track->move_point(glm::vec3(0, 0, delta));
-			}
-			break;
-		case GLFW_KEY_RIGHT:
-			track->toggle_point(false);
-			break;
-		case GLFW_KEY_LEFT:
-			track->toggle_point(true);
-			break;
-		case GLFW_KEY_P:
-			track->pause();
-			break;
-		case GLFW_KEY_M:
-			track->energy_on();
-			break;
 		case GLFW_KEY_C:
 			toggleCam = !toggleCam;
 			if (!toggleCam)

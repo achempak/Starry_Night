@@ -18,7 +18,7 @@ WaterFrameBuffer::~WaterFrameBuffer()
 
 void WaterFrameBuffer::bindReflectionFrameBuffer()
 {
-	bindFrameBuffer(reflectionFrameBuffer, REFRACTION_WIDTH, REFRACTION_HEIGHT);
+	bindFrameBuffer(reflectionFrameBuffer, REFLECTION_WIDTH, REFLECTION_HEIGHT);
 }
 
 void WaterFrameBuffer::bindRefractionFrameBuffer()
@@ -26,11 +26,10 @@ void WaterFrameBuffer::bindRefractionFrameBuffer()
 	bindFrameBuffer(refractionFrameBuffer, REFRACTION_WIDTH, REFRACTION_HEIGHT);
 }
 
-// This method assumes width and height of display are 640x480
-void WaterFrameBuffer::ubindCurrentFrameBuffer()
+void WaterFrameBuffer::unbindCurrentFrameBuffer(int width, int height)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, 640, 480);
+	glViewport(0, 0, width, height);
 }
 
 GLuint WaterFrameBuffer::getReflectionTexture()
@@ -48,19 +47,20 @@ GLuint WaterFrameBuffer::getRefractionDepthTexture()
 	return refractionDepthTexture;
 }
 
+// This method assumes width and height of framebuffer are 640x480
 void WaterFrameBuffer::initializeReflectionFrameBuffer()
 {
 	reflectionFrameBuffer = createFrameBuffer();
 	reflectionTexture = createTextureAttachment(REFLECTION_WIDTH, REFLECTION_HEIGHT);
 	reflectionDepthBuffer = createDepthBufferAttachment(REFLECTION_WIDTH, REFLECTION_HEIGHT);
-	ubindCurrentFrameBuffer();
+	unbindCurrentFrameBuffer(640, 480);
 }
 void WaterFrameBuffer::initializeRefractionFrameBuffer()
 {
 	refractionFrameBuffer = createFrameBuffer();
 	refractionTexture = createTextureAttachment(REFRACTION_WIDTH, REFRACTION_HEIGHT);
 	refractionDepthTexture = createDepthBufferAttachment(REFRACTION_WIDTH, REFRACTION_HEIGHT);
-	ubindCurrentFrameBuffer();
+	unbindCurrentFrameBuffer(640, 480);
 }
 
 void WaterFrameBuffer::bindFrameBuffer(GLuint frameBuffer, int width, int height)

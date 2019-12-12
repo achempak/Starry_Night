@@ -28,6 +28,7 @@
 #include "Terrain.h"
 #include "Water.h"
 #include "WaterFrameBuffer.h"
+#include "gui.h"
 
 class Window
 {
@@ -39,7 +40,6 @@ public:
 	static double x_prev;
 	static double y_prev;
 	static Geometry* sphere_geo;
-	static RGeometry* rsphere_geo;
     static bool boundingOn;
 	static bool isEnergy;
 	static bool toggleCam;
@@ -48,14 +48,11 @@ public:
 	static glm::vec3 eye, center, up;
 	static GLuint program, projectionLoc, viewLoc, colorLoc, norm_factor;
 	static GLuint env_program, skyboxLoc, skyProjectionLoc, skyViewLoc;
-	static GLuint bezier_program, bezierProjectionLoc, bezierViewLoc;
-	static GLuint reflection_program, reflectionProjectionLoc, reflectionViewLoc, reflectionModelLoc,
-		reflectionSkyboxLoc, reflectionCameraLoc;
-	static GLuint simple_program, simpleProjectionLoc, simpleViewLoc, simpleColorLoc;
-	static GLuint water_program, waterProjectionLoc, waterViewLoc, waterColorLoc;
+	static GLuint simple_program, simpleProjectionLoc, simpleViewLoc, simpleColorLoc, simplePlaneLoc;
+	static GLuint water_program, waterProjectionLoc, waterViewLoc, waterColorLoc, waterReflectionLoc, waterRefractionLoc, waterDudvLoc;
+	static GLuint gui_program, guiProjectionLoc, guiViewLoc, guiTextureLoc;
     static std::vector<glm::vec4> frustrum_planes;
 	static Environment* sky;
-	static Track* track;
 	static Transform* sphere;
 	static Terrain* terrain;
 	static Water* water;
@@ -91,6 +88,9 @@ public:
 	// Water Stuff
 	static WaterFrameBuffer* fbos;
 
+	// GUI stuff
+	static Gui* gui;
+
 	static bool initializeProgram();
 	static bool initializeObjects();
 	static void cleanUp();
@@ -105,6 +105,7 @@ public:
     static void calc_plane(std::vector<glm::vec4> &planes, glm::vec3 normal, glm::vec3 point, int plane_number);
     static void toggleBounding(bool on);
 	static void move(char c);
+	static void renderScene();
 };
 
 #endif
