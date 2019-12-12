@@ -2,6 +2,7 @@
 #define TERRAIN_H
 
 #include "Node.hpp"
+#include "Texture.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/geometric.hpp>
 #include <string>
@@ -27,6 +28,13 @@ private:
 
 	// Color properties. Will change these later.
 	glm::vec3 ambient;
+	
+	// Textures
+	Texture* blendMap;
+	Texture* rTexture;
+	Texture* gTexture;
+	Texture* bTexture;
+	Texture* backgroundTexture;
 
 	// Flags
 	bool wireframe_flag;
@@ -50,7 +58,7 @@ public:
 		}
 	};
 
-	Terrain(int size, std::vector<float> corners);
+	Terrain(int size, std::vector<float> corners, GLuint program);
 	~Terrain();
 	void wireframe(bool flag);
 	bool getWireframe();

@@ -9,11 +9,11 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 
-const float tiling = 6.0;
+const float tiling = 1.0;
 
 void main()
 {
-	clipSpace = projection * view * model * vec4(position, 1.0);;
+	clipSpace = projection * view * model * vec4(position, 1.0);
 	gl_Position = clipSpace;
-	textureCoords = vec2(position.x/2.0 + 0.5, position.y/2.0 + 0.5);
+	textureCoords = vec2(position.x/2.0 + 0.5, position.y/2.0 + 0.5) * tiling;
 }

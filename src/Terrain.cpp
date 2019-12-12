@@ -83,7 +83,7 @@ void Terrain::diamond_square(std::vector<std::vector<float>>& height, std::vecto
 {
 	if (r < 1) return;
 
-	float shrink_factor = 0.5f;
+	float shrink_factor = 0.7f;
 	diamond(height, x, z, r, eps, ran, gen);
 	square(height, flags, x, z, r, eps, ran, gen);
 
@@ -94,7 +94,7 @@ void Terrain::diamond_square(std::vector<std::vector<float>>& height, std::vecto
 	diamond_square(height, flags, x + r / 4, z + r / 4, r / 2, eps * shrink_factor, ran, gen);
 }
 
-Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f, 0.1f, 0.1f)), wireframe_flag(false)
+Terrain::Terrain(int size, std::vector<float> corners, GLuint program) : ambient(glm::vec3(1.0f, 0.1f, 0.1f)), wireframe_flag(false)
 {
 	int n = (int)std::pow(2, (double)size) + 1;
 	std::vector<std::vector<float>> height_i(n, std::vector<float>(n));
@@ -107,7 +107,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	float range = 200.0f;
+	float range = 50.0f;
 	diamond_square(height_i, flags, n / 2, n / 2, n - 1, 1.0f, range, gen);
 
 	/**********************************************************************************/
@@ -120,6 +120,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	{
 		for (int j = 0; j < n; ++j)
 		{
+			//if (i == 0 || j == 0 || i == n - 1 || j == n - 1) height_i[i][j] = 0; // Set edges to 0
 			float sum = 0.0f;
 			for (int k = -2; k <= 2; ++k)
 			{
@@ -144,6 +145,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	{
 		for (int j = 0; j < n; ++j)
 		{
+			//if (i == 0 || j == 0 || i == n - 1 || j == n - 1) height_first_pass[i][j] = 0; // Set edges to 0
 			float sum = 0.0f;
 			for (int k = -2; k <= 2; ++k)
 			{
@@ -192,7 +194,7 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	// The size of the grid will by (grid_size x grid_size).
 
 	std::cout << "MAKING VERTICES." << std::endl;
-	float grid_size = 500;
+	float grid_size = 1000;
 	//float grid_size = n-1;
 	for (int i = 0; i < n - 1; ++i)
 	{
@@ -210,6 +212,12 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 			vertices.emplace_back(glm::vec3(((grid_size) / (float)(n - 1) * j), (height[i + 1][j]), ((grid_size) / (float)(n - 1) * (i + 1)))); // Bottom left
 
 		}
+	}
+
+	// Center terrain
+	for (int i = 0; i < vertices.size(); ++i)
+	{
+		vertices[i] -= glm::vec3(grid_size/2.0f, 0, grid_size / 2.0f);
 	}
 	std::cout << "Size of vertices: " << vertices.size() << std::endl;
 
@@ -361,48 +369,6 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	std::cout << "DONE." << std::endl;
 	std::cout << "Size of normals_vertex: " << normals_vertex.size() << std::endl;
 
-
-	/*********************************************************************************/
-	// Normalize the terrain.
-	/*float window_width = 640;
-	float window_height = 480;
-	glm::vec3 max{ 0,0,0 };
-	glm::vec3 min{ 0,0,0 };
-	for (auto iter = vertices.begin(); iter != vertices.end(); ++iter)
-	{
-		glm::vec3 point = *iter;
-		if (point.x > max[0]) max[0] = point.x;
-		else if (point.x < min[0]) min[0] = point.x;
-		if (point.y > max[1]) max[1] = point.y;
-		else if (point.y < min[1]) min[1] = point.y;
-		if (point.z > max[2]) max[2] = point.z;
-		else if (point.z < min[2]) min[2] = point.z;
-	}
-	glm::vec3 center{ (max[0] + min[0]) / 2, (max[1] + min[1]) / 2, (max[2] + min[2]) / 2 };
-	std::cout << "Center of terrain is " << (max[0] + min[0]) / 2 << ", " << (max[1] + min[1]) / 2 << ", " << (max[2] + min[2]) / 2 << std::endl;
-	std::vector<float> dist(vertices.size());
-	float max_dist = 0;
-	for (int i = 0; i < vertices.size(); ++i)
-	{
-		vertices[i] = vertices[i] - center;
-		dist[i] = glm::dot(vertices[i], vertices[i]);
-		if (dist[i] > max_dist) max_dist = dist[i];
-	}
-	max_dist = sqrt(max_dist);
-	float multiplier = 1;
-	float magic_scale_factor = 0.02;
-	if (window_width < window_height)
-	{
-		multiplier = window_width / max_dist;
-	}
-	else multiplier = window_height / max_dist;
-	std::cout << "Multiplier for " << "Terrain" << " is " << multiplier << std::endl;
-	for (int i = 0; i < vertices.size(); ++i)
-	{
-		vertices[i] = magic_scale_factor * multiplier * vertices[i];
-	}*/
-
-	/*********************************************************************************/
 	// Deal with GPU stuff.
 	model = glm::mat4(1);
 	glGenVertexArrays(1, &vao);
@@ -418,6 +384,35 @@ Terrain::Terrain(int size, std::vector<float> corners) : ambient(glm::vec3(1.0f,
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+	
+	// Texture stuff
+	blendMap = new Texture("../resources/blendMap.png");
+	rTexture = new Texture("../resources/path.png");
+	gTexture = new Texture("../resources/grassFlowers.png");
+	bTexture = new Texture("../resources/mud.png");
+	backgroundTexture = new Texture("../resources/grassy2.png");
+	glUseProgram(program);
+	GLuint blendLoc = glGetUniformLocation(program, "blendMap");
+	GLuint rLoc = glGetUniformLocation(program, "rTexture");
+	GLuint gLoc = glGetUniformLocation(program, "gTexture");
+	GLuint bLoc = glGetUniformLocation(program, "bTexture");
+	GLuint backLoc = glGetUniformLocation(program, "backgroundTexture");
+	glUniform1i(blendLoc, 0);
+	glUniform1i(rLoc, 1);
+	glUniform1i(gLoc, 2);
+	glUniform1i(bLoc, 3);
+	glUniform1i(backLoc, 4);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, blendMap->getId());
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, rTexture->getId());
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gTexture->getId());
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, bTexture->getId());
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, backgroundTexture->getId());
+
 	std::cout << "Done initializing Terrain." << std::endl;
 }
 
@@ -425,6 +420,11 @@ Terrain::~Terrain()
 {
 	glDeleteBuffers(2, vbos);
 	glDeleteVertexArrays(1, &vao);
+	delete blendMap;
+	delete rTexture;
+	delete gTexture;
+	delete bTexture;
+	delete backgroundTexture;
 }
 
 void Terrain::draw(glm::mat4 C, GLuint program)

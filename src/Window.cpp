@@ -93,13 +93,13 @@ bool Window::initializeProgram() {
 #ifdef __APPLE__
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
-	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/simple_shader.frag");
+	simple_program = LoadShaders("../shaders/terrain_shader.vert", "../shaders/terrain_shader.frag");
 	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
 	gui_program = LoadShaders("../shaders/gui_shader.vert", "../shaders/gui_shader.frag");
 #else
 	program = LoadShaders("../shaders/shader.vert", "../shaders/shader.frag");
 	env_program = LoadShaders("../shaders/env_shader.vert", "../shaders/env_shader.frag");
-	simple_program = LoadShaders("../shaders/shader.vert", "../shaders/normal_shader.frag");
+	simple_program = LoadShaders("../shaders/terrain_shader.vert", "../shaders/terrain_shader.frag");
 	water_program = LoadShaders("../shaders/water_shader.vert", "../shaders/water_shader.frag");
 	gui_program = LoadShaders("../shaders/gui_shader.vert", "../shaders/gui_shader.frag");
 
@@ -175,28 +175,38 @@ bool Window::initializeObjects()
 	// Setup water FBOs
 	fbos = new WaterFrameBuffer();
 
-	//sphere_geo = new Geometry("../resources/sphere.obj", "sphere_geo");
-	//sphere_geo->setMaterial(glm::vec3(0, 0.5, 1));
+	sphere_geo = new Geometry("../resources/sphere.obj", "sphere_geo");
+	sphere_geo->setMaterial(glm::vec3(0, 0.5, 1));
+
+	//std::vector<std::string> faces = {
+	//	"../resources/mp_tf/thefog_lf.tga",
+	//	"../resources/mp_tf/thefog_rt.tga",
+	//	"../resources/mp_tf/thefog_up.tga",
+	//	"../resources/mp_tf/thefog_dn.tga",
+	//	"../resources/mp_tf/thefog_ft.tga",
+	//	"../resources/mp_tf/thefog_bk.tga",
+	//};
 
 	std::vector<std::string> faces = {
-		"../resources/mp_tf/thefog_lf.tga",
-		"../resources/mp_tf/thefog_rt.tga",
-		"../resources/mp_tf/thefog_up.tga",
-		"../resources/mp_tf/thefog_dn.tga",
-		"../resources/mp_tf/thefog_ft.tga",
-		"../resources/mp_tf/thefog_bk.tga",
+	"../resources/hw_lagoon/lagoon_lf.tga",
+	"../resources/hw_lagoon/lagoon_rt.tga",
+	"../resources/hw_lagoon/lagoon_up.tga",
+	"../resources/hw_lagoon/lagoon_dn.tga",
+	"../resources/hw_lagoon/lagoon_ft.tga",
+	"../resources/hw_lagoon/lagoon_bk.tga",
 	};
+
 	sky = new Environment(faces);
 	GLuint skyTexture = sky->getTextureID();
 
 	std::vector<float> corners = { 0.0f, 10.0f, 5.0f, 3.0f };
-	terrain = new Terrain(10, corners);
+	terrain = new Terrain(10, corners, simple_program);
 
 	//std::vector<std::vector<float>> heightmap = terrain->getHeight();
 	int map_width = 250; // Since "grid_size" is 500
 	std::string dudv_path = "../resources/waterDUDV.png";
 	//water = new Water(glm::vec3(0, terrain->getAvgHeight(), 0), glm::vec3(500, 0, 0), glm::vec3(0, 0, 500), fbos, dudv_path);
-	water = new Water(glm::vec3(0, 0, 0), glm::vec3(500, 0, 0), glm::vec3(0, 0, 500), fbos, dudv_path);
+	water = new Water(glm::vec3(-500.0f, 0, -500.0f), glm::vec3(1000, 0, 0), glm::vec3(0, 0, 1000), fbos, dudv_path);
 
 	gui = new Gui(glm::vec3(0, 0, 0), glm::vec3(10, 0, 0), glm::vec3(0, 10, 0));
 
@@ -215,6 +225,7 @@ void Window::cleanUp()
 	delete water;
 	delete fbos;
 	delete gui;
+	delete sphere_geo;
 
 	// Delete the shader program.
 	glDeleteProgram(program);
@@ -400,7 +411,7 @@ void Window::displayCallback(GLFWwindow* window)
 	// Skybox uniform variables
 	glUniformMatrix4fv(skyProjectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 	//glm::mat4 temp = glm::mat4(glm::mat3(view)); // Remove translation from the view matrix
-	glUniformMatrix4fv(skyViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+	glUniformMatrix4fv(skyViewLoc, 1, GL_FALSE, glm::value_ptr(glm::mat4(glm::mat3(view))));
 
 	// Simple uniform variables
 	glUseProgram(simple_program);
@@ -435,8 +446,9 @@ void Window::displayCallback(GLFWwindow* window)
 	view = reflect * view;
 	glUseProgram(simple_program);
 	glUniform4fv(simplePlaneLoc, 1, glm::value_ptr(glm::vec4(0, 1, 0, -water->getHeight())));
-	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	sky->draw(glm::scale(glm::vec3(501, 501, 501)), env_program);
 	terrain->draw(glm::mat4(1), simple_program);
+	if (toggleCam) sphere_geo->draw(glm::mat4(1), program);
 	//view = glm::lookAt(eye, center, up); // Move camera back
 	view = oldview;
 
@@ -444,19 +456,21 @@ void Window::displayCallback(GLFWwindow* window)
 	fbos->bindRefractionFrameBuffer();
 	glUseProgram(simple_program);
 	glUniform4fv(simplePlaneLoc, 1, glm::value_ptr(glm::vec4(0, -1, 0, water->getHeight())));
-	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	sky->draw(glm::scale(glm::vec3(501, 501, 501)), env_program);
 	terrain->draw(glm::mat4(1), simple_program);
+	if (toggleCam) sphere_geo->draw(glm::mat4(1), program);
 	fbos->unbindCurrentFrameBuffer(Window::width, Window::height);
 
 	// Finally render full scene
 	glDisable(GL_CLIP_DISTANCE0);
-	sky->draw(glm::scale(glm::vec3(500, 500, 500)), env_program);
+	sky->draw(glm::scale(glm::vec3(501, 501, 501)), env_program);
 	terrain->draw(glm::mat4(1), simple_program);
+	if (toggleCam) sphere_geo->draw(glm::mat4(1), program);
 
-	glUseProgram(gui_program);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, water->getDudv());
-	gui->draw(glm::mat4(1), gui_program);
+	//glUseProgram(gui_program);
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, water->getDudv());
+	//gui->draw(glm::mat4(1), gui_program);
 
 	glUseProgram(water_program);
 	glActiveTexture(GL_TEXTURE0);
@@ -503,10 +517,10 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
             break;
 		case GLFW_KEY_C:
 			toggleCam = !toggleCam;
-			if (!toggleCam)
-			{
-				view = glm::lookAt(Window::eye, Window::center, Window::up);
-			}
+			//if (!toggleCam)
+			//{
+			//	view = glm::lookAt(Window::eye, Window::center, Window::up);
+			//}
         case GLFW_KEY_N:
             normal_coloring = !normal_coloring;
             break;

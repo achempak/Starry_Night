@@ -36,7 +36,7 @@ Water::~Water()
 
 void Water::draw(glm::mat4 C, GLuint program)
 {
-	ripple += 0.03f;
+	ripple += 0.002f;
 	if (ripple > 1) ripple = 0.0f;
 
 	glUseProgram(program);
